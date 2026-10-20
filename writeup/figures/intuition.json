@@ -1,0 +1,51 @@
+{
+ "between_cosmology_share": {
+  "median": 0.4254544364891816,
+  "q25": 0.2150687142747007,
+  "q75": 0.6070857646000838
+ },
+ "detection_S": {
+  "ia0.2": {
+   "no_params": 0.126,
+   "fitted": 0.041,
+   "true": 0.737
+  },
+  "bary9.0": {
+   "no_params": 0.036,
+   "fitted": 0.026,
+   "true": 0.439
+  },
+  "bary6.5": {
+   "no_params": 0.018,
+   "fitted": 0.107,
+   "true": 0.449
+  },
+  "baryDMO": {
+   "no_params": 0.011,
+   "fitted": 0.044,
+   "true": 0.335
+  },
+  "supp0.15": {
+   "no_params": 0.025,
+   "fitted": 0.022,
+   "true": 0.191
+  },
+  "psfpat": {
+   "no_params": 0.026,
+   "fitted": 0.296,
+   "true": 0.275
+  },
+  "peakcut0.3": {
+   "no_params": 0.022,
+   "fitted": 0.019
+  },
+  "poisson120": {
+   "no_params": 0.013,
+   "fitted": 0.012
+  },
+  "mult+0.05": {
+   "no_params": 0.007,
+   "fitted": 0.015
+  }
+ }
+}

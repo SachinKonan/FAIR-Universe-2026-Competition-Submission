@@ -1,0 +1,30 @@
+[project]
+name = "fair-universe-2026-submission"
+version = "1.0.0"
+description = "FAIR Universe Weak Lensing Phase 2 OoD detection: final model submission (v3-16b) and research code"
+readme = "README.md"
+# Matches the organizers' runtime image ayaga3540/fair_universe:v1.0 (Python 3.12, PyTorch 2.13.0+cu126, NumPy 2.5.3).
+requires-python = "==3.12.*"
+dependencies = [
+    "numpy==2.5.3",
+    "scipy",
+    "torch==2.13.0",
+]
+
+[dependency-groups]
+# Extra packages used by parts of research/ (not needed to run the submission).
+research = [
+    "matplotlib>=3.11.2",
+    "scikit-learn",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu126" }]
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true

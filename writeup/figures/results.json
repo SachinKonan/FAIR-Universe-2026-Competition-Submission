@@ -1,0 +1,24 @@
+{
+  "_sources": {
+    "leaderboard": "public Codabench leaderboard scores of our submissions (docs/PROGRESS.md, docs/FAIR_PHASE2_REPORT.md section 5.1)",
+    "lco": "leave-cosmology-out proxy, mean challenge metric over 19 synthetic shifts and 3 held-out cosmology sets (docs/FAIR_PHASE2_REPORT.md section 4.3); v3-01 uses the proxy recipe closest to it",
+    "profiling": "challenge metric on audit normal maps vs synthetic shifts of the same maps, scoring the likelihood misfit at the true parameters (oracle) or at the fitted parameters (profile); research/oracle.py, models S (466 summary statistics) and C (CNN embedding)"
+  },
+  "leaderboard": [
+    {"name": "start", "change": "previous pipeline", "lb": 0.5253, "lco": null},
+    {"name": "v3-01", "change": "new likelihood, map-level splits", "lb": 0.5272, "lco": 0.3757},
+    {"name": "v3-02", "change": "+ consistency (xSL, consP8)", "lb": 0.5669, "lco": 0.3929},
+    {"name": "v3-04", "change": "+ denoiser residual, consistency at full weight", "lb": 0.6461, "lco": 0.4126},
+    {"name": "v3-15b", "change": "+ more views, noise, bispectrum, anisotropy, OE misfit", "lb": 0.6667, "lco": 0.4624},
+    {"name": "v3-15d", "change": "- CNN-embedding likelihood", "lb": 0.6676, "lco": 0.4720},
+    {"name": "v3-15g", "change": "- OE misfit (ablation)", "lb": 0.6479, "lco": 0.4421},
+    {"name": "v3-16b", "change": "+ OE logit, weight 3 (final)", "lb": 0.7037, "lco": 0.5166},
+    {"name": "v3-16c", "change": "OE logit, weight 6", "lb": 0.6993, "lco": 0.5258}
+  ],
+  "profiling": {
+    "S": {"ia0.2": [0.737, 0.041], "bary9.0": [0.439, 0.026], "bary6.5": [0.449, 0.107], "baryDMO": [0.335, 0.044],
+          "supp0.15": [0.191, 0.022], "psfpat": [0.275, 0.296]},
+    "C": {"ia0.2": [0.865, 0.069], "bary9.0": [0.619, 0.134], "bary6.5": [0.654, 0.341], "baryDMO": [0.472, 0.202],
+          "supp0.15": [0.465, 0.095], "psfpat": [0.801, 0.546]}
+  }
+}

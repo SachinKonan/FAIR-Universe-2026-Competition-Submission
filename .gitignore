@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+dist/
+runs/
+third_party/
+*.sif
+writeup/build/
+writeup/figures/preview/
+fair-data
