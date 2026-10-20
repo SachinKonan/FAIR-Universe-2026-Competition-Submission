@@ -1,9 +1,9 @@
-"""Figures for the write-up.
+"""Figure panels for the write-up (one PDF per panel; the subcaptions live in writeup.tex).
 
   uv run --group research python writeup/figures/make_figures.py [--maps]
 
-fig_profiling.pdf and fig_results.pdf come from results.json and intuition.json. fig_maps.pdf (--maps) reads the
-challenge training maps through research/data.py (FAIR_DATA env var, default fair-data/).
+fig_profiling_{a,b}.pdf and fig_results_{a,b}.pdf come from results.json and intuition.json. fig_maps_{a,b}.pdf
+(--maps) read the challenge training maps through research/data.py (FAIR_DATA env var, default fair-data/).
 """
 import argparse
 import json
@@ -23,10 +23,11 @@ RED, TEAL = '#d94f2b', '#1a7f6b'
 INK, MUTED, GREY, GRID = '#222222', '#6b6b6b', '#8c8c8c', '#e6e6e6'
 plt.rcParams.update({
     'font.family': 'sans-serif', 'font.size': 8, 'axes.labelsize': 8.5, 'axes.titlesize': 9,
-    'xtick.labelsize': 7.5, 'ytick.labelsize': 7.5, 'legend.fontsize': 7.5,
+    'xtick.labelsize': 7.5, 'ytick.labelsize': 7.5, 'legend.fontsize': 7.2,
     'axes.spines.top': False, 'axes.spines.right': False, 'axes.edgecolor': MUTED, 'axes.labelcolor': INK,
     'xtick.color': MUTED, 'ytick.color': MUTED, 'axes.grid': True, 'grid.color': GRID, 'grid.linewidth': 0.5,
-    'axes.axisbelow': True, 'legend.frameon': False, 'hatch.linewidth': 0.6, 'pdf.fonttype': 42, 'ps.fonttype': 42,
+    'axes.axisbelow': True, 'hatch.linewidth': 0.6, 'pdf.fonttype': 42, 'ps.fonttype': 42,
+    'legend.frameon': True, 'legend.fancybox': False, 'legend.framealpha': 1.0, 'legend.edgecolor': '#bdbdbd',
 })
 R = json.loads((HERE / 'results.json').read_text())
 
@@ -35,19 +36,20 @@ def save(fig, name):
     fig.savefig(HERE / f'{name}.pdf', bbox_inches='tight', pad_inches=0.02)
     (HERE / 'preview').mkdir(exist_ok=True)
     fig.savefig(HERE / 'preview' / f'{name}.png', dpi=150, bbox_inches='tight', pad_inches=0.02)
+    plt.close(fig)
 
 
 def fig_profiling():
     """Detection with no parameters, with fitted parameters, and with the true parameters, per shift."""
-    names = {'ia0.2': 'IA-like\nmixing', 'bary9.0': 'strong\nfeedback', 'bary6.5': 'weak\nfeedback',
+    names = {'ia0.2': 'IA-like\nmixing', 'bary9.0': 'strong\nAGN', 'bary6.5': 'weak\nAGN',
              'baryDMO': 'no\nbaryons', 'supp0.15': 'damped\nsmall\nscales', 'psfpat': 'PSF\npattern'}
     nop = json.loads((HERE / 'intuition.json').read_text())['detection_S']
     chance = float(np.mean(np.logspace(-3, np.log10(0.05), 100)))
     styles = {'none': dict(facecolor=GREY, alpha=0.45, hatch='////', edgecolor=INK, linewidth=0.4),
               'fit': dict(facecolor=RED, edgecolor=INK, linewidth=0.4),
               'true': dict(facecolor=TEAL, edgecolor=INK, linewidth=0.4)}
-    fig, axes = plt.subplots(1, 2, figsize=(6.5, 2.3), sharey=True, constrained_layout=True)
-    for ax, (key, title) in zip(axes, [('S', '(a) summary statistics'), ('C', '(b) CNN embedding')]):
+    for key, panel in [('S', 'a'), ('C', 'b')]:
+        fig, ax = plt.subplots(figsize=(3.2, 2.1), constrained_layout=True)
         d = R['profiling'][key]
         series = ([('none', [nop[s]['no_params'] for s in names])] if key == 'S' else []) + \
             [('fit', [d[s][1] for s in names]), ('true', [d[s][0] for s in names])]
@@ -57,26 +59,29 @@ def fig_profiling():
             ax.bar(x + (j - (n - 1) / 2) * w, vals, width=w * 0.92, zorder=3, **styles[kind])
         ax.axhline(chance, color=MUTED, lw=0.8, ls=':', zorder=4)
         ax.set_xticks(x, list(names.values()))
-        ax.tick_params(axis='x', length=0, labelsize=6.6)
+        ax.tick_params(axis='x', length=0, labelsize=6.8)
         ax.set_xlim(-0.55, len(names) - 0.45)
         ax.set_ylim(0, 0.9)
         ax.grid(axis='x', visible=False)
-        ax.set_title(title, loc='left')
-    axes[0].set_ylabel('detection score')
-    axes[0].legend(handles=[Patch(label='no parameters', **styles['none']),
-                            Patch(label='fitted parameters', **styles['fit']),
-                            Patch(label='true parameters', **styles['true']),
-                            Line2D([0], [0], color=MUTED, lw=0.8, ls=':', label='chance')],
-                   loc='upper right', handlelength=1.4)
-    save(fig, 'fig_profiling')
+        ax.set_ylabel('detection score')
+        if key == 'S':
+            ax.legend(handles=[Patch(label='no parameters', **styles['none']),
+                               Patch(label='fitted parameters', **styles['fit']),
+                               Patch(label='true parameters', **styles['true']),
+                               Line2D([0], [0], color=MUTED, lw=0.8, ls=':', label='chance')],
+                      loc='upper right', handlelength=1.4)
+        save(fig, f'fig_profiling_{panel}')
 
 
 def fig_results():
     """(a) Public leaderboard per submission; (b) leave-cosmology-out proxy vs. leaderboard."""
     rows = R['leaderboard']
     side = {'v3-15g', 'v3-16c'}
-    fig, (a, b) = plt.subplots(1, 2, figsize=(6.5, 2.4), constrained_layout=True,
-                               gridspec_kw=dict(width_ratios=[1.35, 1]))
+    # value-label offsets (points), chosen so no label crosses the line
+    where = {'start': (0, -13, 'center'), 'v3-01': (-4, 4, 'right'), 'v3-02': (-5, 4, 'right'),
+             'v3-04': (-5, 4, 'right'), 'v3-15b': (0, 6, 'center'), 'v3-15d': (0, 6, 'center'),
+             'v3-15g': (0, -12, 'center'), 'v3-16b': (0, 6, 'center'), 'v3-16c': (0, -12, 'center')}
+    fig, a = plt.subplots(figsize=(3.6, 2.3), constrained_layout=True)
     x = np.arange(len(rows))
     lb = [r['lb'] for r in rows]
     main = [i for i, r in enumerate(rows) if r['name'] not in side]
@@ -84,19 +89,20 @@ def fig_results():
     a.plot([i for i in x if rows[i]['name'] in side], [lb[i] for i in x if rows[i]['name'] in side],
            ls='none', marker='o', ms=3.5, mfc='white', mec=RED, mew=0.9, zorder=3)
     for i, r in enumerate(rows):
-        a.annotate(f'{lb[i]:.3f}', (i, lb[i]), textcoords='offset points',
-                   xytext=(0, -10 if r['name'] in side else 5), ha='center', fontsize=6.8,
-                   color=MUTED if r['name'] in side else INK)
+        dx, dy, ha = where[r['name']]
+        a.annotate(f'{lb[i]:.3f}', (i, lb[i]), textcoords='offset points', xytext=(dx, dy), ha=ha, va='bottom',
+                   fontsize=6.8, color=MUTED if r['name'] in side else INK, zorder=5)
     a.set_xticks(x, [r['name'] for r in rows], rotation=35, ha='right')
     a.tick_params(axis='x', length=0)
-    a.set_ylim(0.5, 0.73)
+    a.set_ylim(0.5, 0.735)
     a.set_ylabel('public leaderboard score')
     a.grid(axis='x', visible=False)
-    a.set_title('(a) leaderboard, in submission order', loc='left')
     a.legend(handles=[Line2D([0], [0], color=RED, lw=1.4, marker='o', ms=3.5, label='kept'),
                       Line2D([0], [0], ls='none', marker='o', ms=3.5, mfc='white', mec=RED, mew=0.9,
-                             label='variant, not kept')], loc='upper left')
+                             label='variant, not kept')], loc='lower right')
+    save(fig, 'fig_results_a')
 
+    fig, b = plt.subplots(figsize=(2.8, 2.3), constrained_layout=True)
     pts = [r for r in rows if r['lco'] is not None]
     b.plot([r['lco'] for r in pts], [r['lb'] for r in pts], ls='none', marker='o', ms=3.5, mfc=RED, mec=RED, zorder=3)
     off = {'v3-01': (5, -2), 'v3-02': (5, -3), 'v3-04': (5, -3), 'v3-15b': (-30, 3), 'v3-15d': (4, 3),
@@ -109,14 +115,13 @@ def fig_results():
                arrowprops=dict(arrowstyle='-', color=GREY, lw=0.7, shrinkA=2, shrinkB=3))
     b.set_xlabel('leave-cosmology-out proxy')
     b.set_ylabel('public leaderboard score')
-    b.set_xlim(0.36, 0.54)
-    b.set_ylim(0.5, 0.73)
-    b.set_title('(b) proxy vs. leaderboard', loc='left')
-    save(fig, 'fig_results')
+    b.set_xlim(0.36, 0.555)
+    b.set_ylim(0.5, 0.735)
+    save(fig, 'fig_results_b')
 
 
 def fig_maps():
-    """A normal map, and 128x128-pixel crops of clean maps: three normal universes and four distortions of one."""
+    """(a) A normal map as observed; (b) 128x128-pixel noiseless crops: three normal universes, four distortions."""
     import torch
     sys.path.insert(0, str(HERE.parents[1] / 'research'))
     import data
@@ -144,18 +149,17 @@ def fig_maps():
     cmap = LinearSegmentedColormap.from_list('div', [TEAL, '#f7f7f7', RED])
     cmap.set_bad('white')
     y0, x0, S = 600, 24, 128
-    v = float(np.quantile(np.abs(clean[0][torch.as_tensor(m)].numpy()), 0.995))
-    fig = plt.figure(figsize=(6.5, 2.6))
-    gs = fig.add_gridspec(2, 7, height_ratios=[0.62, 1], hspace=0.05, wspace=0.06)
-    ax = fig.add_subplot(gs[0, :])
+
+    fig, ax = plt.subplots(figsize=(6.5, 0.95))
     vv = 3 * data.NOISE_SIGMA
     ax.imshow(np.where(m, noisy.numpy(), np.nan).T, cmap=cmap, vmin=-vv, vmax=vv, interpolation='nearest')
     ax.add_patch(plt.Rectangle((y0, x0), S, S, fill=False, ec=INK, lw=0.7))
-    ax.set_title('a normal map as observed: 1424 $\\times$ 176 pixels of 2 arcmin, survey mask, shape noise',
-                 loc='left')
     ax.axis('off')
-    for j, (title, img) in enumerate(views):
-        ax = fig.add_subplot(gs[1, j])
+    save(fig, 'fig_maps_a')
+
+    v = float(np.quantile(np.abs(clean[0][torch.as_tensor(m)].numpy()), 0.995))
+    fig, axes = plt.subplots(1, 7, figsize=(6.5, 1.55), gridspec_kw=dict(wspace=0.06))
+    for j, (ax, (title, img)) in enumerate(zip(axes, views)):
         crop = np.where(m, img.numpy(), np.nan)[y0:y0 + S, x0:x0 + S]
         ax.imshow(crop, cmap=cmap, vmin=-v, vmax=v, interpolation='nearest')
         ax.set_title(title, fontsize=7, color=INK if j < 3 else RED)
@@ -163,12 +167,11 @@ def fig_maps():
         for s in ax.spines.values():
             s.set_visible(True); s.set_color(GREY); s.set_linewidth(0.5)
     fig.canvas.draw()
-    crops = fig.axes[1:]
-    y = crops[0].get_position().y0 - 0.035
+    y = axes[0].get_position().y0 - 0.04
     for lo, hi, text, col in [(0, 2, 'three normal universes', MUTED), (3, 6, 'the first map, distorted', RED)]:
-        xc = (crops[lo].get_position().x0 + crops[hi].get_position().x1) / 2
+        xc = (axes[lo].get_position().x0 + axes[hi].get_position().x1) / 2
         fig.text(xc, y, text, fontsize=7.5, color=col, ha='center', va='top')
-    save(fig, 'fig_maps')
+    save(fig, 'fig_maps_b')
 
 
 if __name__ == '__main__':
