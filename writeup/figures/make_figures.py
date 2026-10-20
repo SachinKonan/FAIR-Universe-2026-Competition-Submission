@@ -2,8 +2,8 @@
 
   uv run --group research python writeup/figures/make_figures.py [--maps]
 
-fig_profiling.pdf and fig_results.pdf come from results.json. fig_maps.pdf (--maps) reads the challenge training
-maps through research/data.py (FAIR_DATA env var, default fair-data/).
+fig_profiling.pdf and fig_results.pdf come from results.json and intuition.json. fig_maps.pdf (--maps) reads the
+challenge training maps through research/data.py (FAIR_DATA env var, default fair-data/).
 """
 import argparse
 import json
@@ -15,97 +15,108 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
 
 HERE = Path(__file__).resolve().parent
-BLUE, ORANGE, RED, GRAY = '#2a78d6', '#eb6834', '#e34948', '#898781'
-INK, INK2, GRID, AXIS, MID = '#0b0b0b', '#52514e', '#e1e0d9', '#c3c2b7', '#f0efec'
+RED, TEAL = '#d94f2b', '#1a7f6b'
+INK, MUTED, GREY, GRID = '#222222', '#6b6b6b', '#8c8c8c', '#e6e6e6'
 plt.rcParams.update({
-    'font.family': 'sans-serif', 'font.size': 7.5, 'axes.titlesize': 8, 'axes.labelsize': 7.5,
-    'axes.edgecolor': AXIS, 'axes.labelcolor': INK2, 'xtick.color': INK2, 'ytick.color': INK2,
-    'axes.spines.top': False, 'axes.spines.right': False, 'axes.linewidth': 0.6,
-    'xtick.major.width': 0.6, 'ytick.major.width': 0.6, 'xtick.major.size': 2.5, 'ytick.major.size': 2.5,
-    'axes.grid': True, 'grid.color': GRID, 'grid.linewidth': 0.5, 'axes.axisbelow': True,
-    'legend.frameon': False, 'pdf.fonttype': 42, 'savefig.bbox': 'tight', 'savefig.pad_inches': 0.02,
+    'font.family': 'sans-serif', 'font.size': 8, 'axes.labelsize': 8.5, 'axes.titlesize': 9,
+    'xtick.labelsize': 7.5, 'ytick.labelsize': 7.5, 'legend.fontsize': 7.5,
+    'axes.spines.top': False, 'axes.spines.right': False, 'axes.edgecolor': MUTED, 'axes.labelcolor': INK,
+    'xtick.color': MUTED, 'ytick.color': MUTED, 'axes.grid': True, 'grid.color': GRID, 'grid.linewidth': 0.5,
+    'axes.axisbelow': True, 'legend.frameon': False, 'hatch.linewidth': 0.6, 'pdf.fonttype': 42, 'ps.fonttype': 42,
 })
 R = json.loads((HERE / 'results.json').read_text())
 
 
+def save(fig, name):
+    fig.savefig(HERE / f'{name}.pdf', bbox_inches='tight', pad_inches=0.02)
+    (HERE / 'preview').mkdir(exist_ok=True)
+    fig.savefig(HERE / 'preview' / f'{name}.png', dpi=150, bbox_inches='tight', pad_inches=0.02)
+
+
 def fig_profiling():
     """Detection with no parameters, with fitted parameters, and with the true parameters, per shift."""
-    names = {'ia0.2': 'IA-like mixing', 'bary9.0': 'baryons, strong feedback', 'bary6.5': 'baryons, weak feedback',
-             'baryDMO': 'no baryons (DMO)', 'supp0.15': 'small-scale suppression', 'psfpat': 'PSF pattern'}
+    names = {'ia0.2': 'IA-like\nmixing', 'bary9.0': 'strong\nfeedback', 'bary6.5': 'weak\nfeedback',
+             'baryDMO': 'no\nbaryons', 'supp0.15': 'damped\nsmall\nscales', 'psfpat': 'PSF\npattern'}
     nop = json.loads((HERE / 'intuition.json').read_text())['detection_S']
     chance = float(np.mean(np.logspace(-3, np.log10(0.05), 100)))
-    fig, axes = plt.subplots(1, 2, figsize=(6.5, 2.0), sharey=True)
-    for ax, (key, title) in zip(axes, [('S', '(a) summary statistics (466)'), ('C', '(b) CNN embedding')]):
+    styles = {'none': dict(facecolor=GREY, alpha=0.45, hatch='////', edgecolor=INK, linewidth=0.4),
+              'fit': dict(facecolor=RED, edgecolor=INK, linewidth=0.4),
+              'true': dict(facecolor=TEAL, edgecolor=INK, linewidth=0.4)}
+    fig, axes = plt.subplots(1, 2, figsize=(6.5, 2.3), sharey=True, constrained_layout=True)
+    for ax, (key, title) in zip(axes, [('S', '(a) summary statistics'), ('C', '(b) CNN embedding')]):
         d = R['profiling'][key]
-        ax.axvline(chance, color=AXIS, lw=0.8, ls=':', zorder=0)
-        for i, s in enumerate(names):
-            tru, fit = d[s]
-            pts = [tru, fit] + ([nop[s]['no_params']] if key == 'S' else [])
-            ax.plot([min(pts), max(pts)], [i, i], color=GRID, lw=1.6, zorder=1, solid_capstyle='round')
-            if key == 'S':
-                ax.scatter([nop[s]['no_params']], [i], s=22, color=GRAY, zorder=2, edgecolor='white', linewidth=0.8,
-                           label='no parameters' if i == 0 else None)
-            ax.scatter([fit], [i], s=22, color=ORANGE, zorder=3, edgecolor='white', linewidth=0.8,
-                       label='fitted parameters' if i == 0 else None)
-            ax.scatter([tru], [i], s=22, color=BLUE, zorder=4, edgecolor='white', linewidth=0.8,
-                       label='true parameters' if i == 0 else None)
-        ax.set_yticks(range(len(names)), list(names.values()))
-        ax.invert_yaxis()
-        ax.set_xlim(0, 0.9)
-        ax.grid(axis='y', visible=False)
-        ax.set_title(title, color=INK, loc='left')
-        ax.set_xlabel('detection score (challenge metric)')
-    axes[0].text(chance + 0.012, 0.02, 'chance', fontsize=6.3, color=INK2, va='bottom',
-                 transform=axes[0].get_xaxis_transform())
-    fig.legend(*axes[0].get_legend_handles_labels(), loc='upper center', ncol=3, fontsize=7, handletextpad=0.2,
-               bbox_to_anchor=(0.6, 1.08))
-    fig.tight_layout(w_pad=1.0)
-    fig.savefig(HERE / 'fig_profiling.pdf'); (HERE / 'preview').mkdir(exist_ok=True); fig.savefig(HERE / 'preview' / 'fig_profiling.png', dpi=130)
+        series = ([('none', [nop[s]['no_params'] for s in names])] if key == 'S' else []) + \
+            [('fit', [d[s][1] for s in names]), ('true', [d[s][0] for s in names])]
+        n, w = len(series), 0.84 / 3
+        x = np.arange(len(names))
+        for j, (kind, vals) in enumerate(series):
+            ax.bar(x + (j - (n - 1) / 2) * w, vals, width=w * 0.92, zorder=3, **styles[kind])
+        ax.axhline(chance, color=MUTED, lw=0.8, ls=':', zorder=4)
+        ax.set_xticks(x, list(names.values()))
+        ax.tick_params(axis='x', length=0, labelsize=6.6)
+        ax.set_xlim(-0.55, len(names) - 0.45)
+        ax.set_ylim(0, 0.9)
+        ax.grid(axis='x', visible=False)
+        ax.set_title(title, loc='left')
+    axes[0].set_ylabel('detection score')
+    axes[0].legend(handles=[Patch(label='no parameters', **styles['none']),
+                            Patch(label='fitted parameters', **styles['fit']),
+                            Patch(label='true parameters', **styles['true']),
+                            Line2D([0], [0], color=MUTED, lw=0.8, ls=':', label='chance')],
+                   loc='upper right', handlelength=1.4)
+    save(fig, 'fig_profiling')
 
 
 def fig_results():
     """(a) Public leaderboard per submission; (b) leave-cosmology-out proxy vs. leaderboard."""
     rows = R['leaderboard']
-    fig, (a, b) = plt.subplots(1, 2, figsize=(6.5, 2.35), gridspec_kw=dict(width_ratios=[1.35, 1]))
+    side = {'v3-15g', 'v3-16c'}
+    fig, (a, b) = plt.subplots(1, 2, figsize=(6.5, 2.4), constrained_layout=True,
+                               gridspec_kw=dict(width_ratios=[1.35, 1]))
     x = np.arange(len(rows))
     lb = [r['lb'] for r in rows]
-    main = [i for i, r in enumerate(rows) if r['name'] not in ('v3-15g', 'v3-16c')]
-    a.plot(main, [lb[i] for i in main], color=BLUE, lw=1.4, zorder=1)
+    main = [i for i, r in enumerate(rows) if r['name'] not in side]
+    a.plot(main, [lb[i] for i in main], color=RED, lw=1.4, marker='o', ms=3.5, mfc=RED, mec=RED, mew=0.9, zorder=3)
+    a.plot([i for i in x if rows[i]['name'] in side], [lb[i] for i in x if rows[i]['name'] in side],
+           ls='none', marker='o', ms=3.5, mfc='white', mec=RED, mew=0.9, zorder=3)
     for i, r in enumerate(rows):
-        side = r['name'] in ('v3-15g', 'v3-16c')
-        a.scatter([i], [lb[i]], s=20, zorder=2, color='white' if side else BLUE, edgecolor=BLUE, linewidth=1.1)
-        a.annotate(f"{lb[i]:.3f}", (i, lb[i]), textcoords='offset points', xytext=(0, -10 if side else 5),
-                   ha='center', fontsize=6.3, color=INK2 if side else INK)
+        a.annotate(f'{lb[i]:.3f}', (i, lb[i]), textcoords='offset points',
+                   xytext=(0, -10 if r['name'] in side else 5), ha='center', fontsize=6.8,
+                   color=MUTED if r['name'] in side else INK)
     a.set_xticks(x, [r['name'] for r in rows], rotation=35, ha='right')
+    a.tick_params(axis='x', length=0)
     a.set_ylim(0.5, 0.73)
     a.set_ylabel('public leaderboard score')
     a.grid(axis='x', visible=False)
-    a.set_title('(a) leaderboard, in submission order', color=INK, loc='left')
-    a.text(0.02, 0.97, 'open marker: variant not kept', transform=a.transAxes, fontsize=6.3, color=INK2, va='top')
+    a.set_title('(a) leaderboard, in submission order', loc='left')
+    a.legend(handles=[Line2D([0], [0], color=RED, lw=1.4, marker='o', ms=3.5, label='kept'),
+                      Line2D([0], [0], ls='none', marker='o', ms=3.5, mfc='white', mec=RED, mew=0.9,
+                             label='variant, not kept')], loc='upper left')
 
     pts = [r for r in rows if r['lco'] is not None]
-    b.scatter([r['lco'] for r in pts], [r['lb'] for r in pts], s=20, color=BLUE, edgecolor='white', linewidth=0.8)
-    off = {'v3-01': (4, -2), 'v3-02': (4, -3), 'v3-04': (4, -3), 'v3-15b': (-28, 3), 'v3-15d': (4, 3),
-           'v3-15g': (4, -3), 'v3-16b': (-30, 2), 'v3-16c': (4, 2)}
+    b.plot([r['lco'] for r in pts], [r['lb'] for r in pts], ls='none', marker='o', ms=3.5, mfc=RED, mec=RED, zorder=3)
+    off = {'v3-01': (5, -2), 'v3-02': (5, -3), 'v3-04': (5, -3), 'v3-15b': (-30, 3), 'v3-15d': (4, 3),
+           'v3-15g': (5, -3), 'v3-16b': (-30, 2), 'v3-16c': (4, 2)}
     for r in pts:
         b.annotate(r['name'], (r['lco'], r['lb']), textcoords='offset points', xytext=off[r['name']],
-                   fontsize=6.3, color=INK2)
-    b.annotate('OE logit weight 3 $\\to$ 6:\nproxy up, leaderboard down', (0.5258, 0.6993), xytext=(0.535, 0.585),
-               fontsize=6.3, color=RED, ha='right',
-               arrowprops=dict(arrowstyle='->', color=RED, lw=0.7, shrinkA=2, shrinkB=3))
+                   fontsize=6.8, color=INK)
+    b.annotate('Ol weight 3 $\\to$ 6:\nproxy up, leaderboard down', (0.5258, 0.6993), xytext=(0.535, 0.585),
+               fontsize=6.8, color=MUTED, ha='right',
+               arrowprops=dict(arrowstyle='-', color=GREY, lw=0.7, shrinkA=2, shrinkB=3))
     b.set_xlabel('leave-cosmology-out proxy')
     b.set_ylabel('public leaderboard score')
     b.set_xlim(0.36, 0.54)
     b.set_ylim(0.5, 0.73)
-    b.set_title('(b) proxy vs. leaderboard', color=INK, loc='left')
-    fig.tight_layout(w_pad=1.5)
-    fig.savefig(HERE / 'fig_results.pdf'); (HERE / 'preview').mkdir(exist_ok=True); fig.savefig(HERE / 'preview' / 'fig_results.png', dpi=130)
+    b.set_title('(b) proxy vs. leaderboard', loc='left')
+    save(fig, 'fig_results')
 
 
 def fig_maps():
-    """A normal map, and 128x128-pixel crops of clean maps: two normal universes and four distortions of one."""
+    """A normal map, and 128x128-pixel crops of clean maps: three normal universes and four distortions of one."""
     import torch
     sys.path.insert(0, str(HERE.parents[1] / 'research'))
     import data
@@ -123,43 +134,41 @@ def fig_maps():
         x[torch.as_tensor(m)] = torch.as_tensor(np.asarray(train[c, r], dtype=np.float32))
         return x[None]
 
-    gen = torch.Generator().manual_seed(0)
     clean = full(c_fid)
-    noisy = data.add_noise(clean, mask_t, gen)[0]
+    noisy = data.add_noise(clean, mask_t, torch.Generator().manual_seed(0))[0]
     views = [('$\\Omega_m$=%.2f\n$S_8$=%.2f' % (om[c], lab[c, 0, 1]), full(c)[0]) for c in (c_fid, c_lo, c_hi)]
     for name, title in [('ia0.2', 'IA-like\nmixing'), ('aniso0.7', 'anisotropic\nsmoothing'),
                         ('peakcut0.3', 'flattened\npeaks'), ('psfpat', 'PSF\npattern')]:
         views.append((title, data.apply_shift(name, clean, mask_t, torch.Generator().manual_seed(1))[0][0]))
 
-    cmap = LinearSegmentedColormap.from_list('div', [BLUE, MID, RED])
+    cmap = LinearSegmentedColormap.from_list('div', [TEAL, '#f7f7f7', RED])
     cmap.set_bad('white')
     y0, x0, S = 600, 24, 128
     v = float(np.quantile(np.abs(clean[0][torch.as_tensor(m)].numpy()), 0.995))
     fig = plt.figure(figsize=(6.5, 2.6))
     gs = fig.add_gridspec(2, 7, height_ratios=[0.62, 1], hspace=0.05, wspace=0.06)
-    for row, (img, title, vv) in enumerate([(noisy, 'observed (with shape noise)', 3 * data.NOISE_SIGMA)]):
-        ax = fig.add_subplot(gs[0, :])
-        im = np.where(m, img.numpy(), np.nan).T
-        ax.imshow(im, cmap=cmap, vmin=-vv, vmax=vv, interpolation='nearest', aspect='equal')
-        ax.add_patch(plt.Rectangle((y0, x0), S, S, fill=False, ec=INK, lw=0.7))
-        ax.set_title('a normal map as observed: 1424 $\\times$ 176 pixels of 2 arcmin, survey mask, shape noise',
-                     loc='left', color=INK)
-        ax.axis('off')
+    ax = fig.add_subplot(gs[0, :])
+    vv = 3 * data.NOISE_SIGMA
+    ax.imshow(np.where(m, noisy.numpy(), np.nan).T, cmap=cmap, vmin=-vv, vmax=vv, interpolation='nearest')
+    ax.add_patch(plt.Rectangle((y0, x0), S, S, fill=False, ec=INK, lw=0.7))
+    ax.set_title('a normal map as observed: 1424 $\\times$ 176 pixels of 2 arcmin, survey mask, shape noise',
+                 loc='left')
+    ax.axis('off')
     for j, (title, img) in enumerate(views):
         ax = fig.add_subplot(gs[1, j])
         crop = np.where(m, img.numpy(), np.nan)[y0:y0 + S, x0:x0 + S]
         ax.imshow(crop, cmap=cmap, vmin=-v, vmax=v, interpolation='nearest')
-        ax.set_title(title, fontsize=6.3, color=INK if j < 3 else RED)
+        ax.set_title(title, fontsize=7, color=INK if j < 3 else RED)
         ax.set_xticks([]); ax.set_yticks([]); ax.grid(False)
         for s in ax.spines.values():
-            s.set_visible(True); s.set_color(AXIS)
+            s.set_visible(True); s.set_color(GREY); s.set_linewidth(0.5)
     fig.canvas.draw()
     crops = fig.axes[1:]
     y = crops[0].get_position().y0 - 0.035
-    for lo, hi, text, col in [(0, 2, 'three normal universes', INK2), (3, 6, 'the first map, distorted', RED)]:
-        x = (crops[lo].get_position().x0 + crops[hi].get_position().x1) / 2
-        fig.text(x, y, text, fontsize=6.8, color=col, ha='center', va='top')
-    fig.savefig(HERE / 'fig_maps.pdf'); (HERE / 'preview').mkdir(exist_ok=True); fig.savefig(HERE / 'preview' / 'fig_maps.png', dpi=130)
+    for lo, hi, text, col in [(0, 2, 'three normal universes', MUTED), (3, 6, 'the first map, distorted', RED)]:
+        xc = (crops[lo].get_position().x0 + crops[hi].get_position().x1) / 2
+        fig.text(xc, y, text, fontsize=7.5, color=col, ha='center', va='top')
+    save(fig, 'fig_maps')
 
 
 if __name__ == '__main__':
